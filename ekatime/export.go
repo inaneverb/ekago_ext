@@ -26,10 +26,6 @@ type (
 
 	Weekday = ekatime_orig.Weekday
 
-	// https://github.com/qioalice/ekago/ekatime/timestamp.go
-
-	TimestampPair = ekatime_orig.TimestampPair
-
 	// https://github.com/qioalice/ekago/ekatime/event.go
 
 	Event = ekatime_orig.Event
@@ -97,17 +93,8 @@ var (
 var (
 	// https://github.com/qioalice/ekago/ekatime/date.go
 
-	IsValidDate            = ekatime_orig.IsValidDate
-	NewDate                = ekatime_orig.NewDate
-	IsLeap                 = ekatime_orig.IsLeap
-	InMonth                = ekatime_orig.InMonth
-	InYear                 = ekatime_orig.InYear
-	BeginningOfYear        = ekatime_orig.BeginningOfYear
-	EndOfYear              = ekatime_orig.EndOfYear
-	BeginningAndEndOfYear  = ekatime_orig.BeginningAndEndOfYear
-	BeginningOfMonth       = ekatime_orig.BeginningOfMonth
-	EndOfMonth             = ekatime_orig.EndOfMonth
-	BeginningAndEndOfMonth = ekatime_orig.BeginningAndEndOfMonth
+	IsValidDate = ekatime_orig.IsValidDate
+	IsLeap      = ekatime_orig.IsLeap
 
 	// https://github.com/qioalice/ekago/ekatime/event.go
 
@@ -126,11 +113,4 @@ var (
 	// https://github.com/qioalice/ekago/ekatime/time.go
 
 	IsValidTime = ekatime_orig.IsValidTime
-	NewTime     = ekatime_orig.NewTime
-
-	// https://github.com/qioalice/ekago/ekatime/timestamp.go
-
-	Now         = ekatime_orig.Now
-	UnixFrom    = ekatime_orig.UnixFrom
-	UnixFromStd = ekatime_orig.UnixFromStd
 )
