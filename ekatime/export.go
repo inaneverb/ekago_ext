@@ -85,6 +85,9 @@ var (
 	OnceIn15Minutes = &ekatime_orig.OnceIn15Minutes
 	OnceIn30Minutes = &ekatime_orig.OnceIn30Minutes
 	OnceInHour      = &ekatime_orig.OnceInHour
+	OnceIn2Hour     = &ekatime_orig.OnceIn2Hour
+	OnceIn3Hour     = &ekatime_orig.OnceIn3Hour
+	OnceIn6Hour     = &ekatime_orig.OnceIn6Hour
 	OnceIn12Hours   = &ekatime_orig.OnceIn12Hours
 	OnceInDay       = &ekatime_orig.OnceInDay
 )
