@@ -8,8 +8,6 @@ package ekatime
 //goland:noinspection GoSnakeCaseUsage
 import (
 	"unsafe"
-
-	ekatime_orig "github.com/qioalice/ekago/v2/ekatime"
 )
 
 type (
@@ -23,12 +21,12 @@ type (
 	TimestampPair [2]Timestamp
 )
 
-func WrapTimestampPair(tsp ekatime_orig.TimestampPair) TimestampPair {
+func WrapTimestampPair(tsp OriginalTimestampPair) TimestampPair {
 	return *(*TimestampPair)(unsafe.Pointer(&tsp))
 }
 
-func (tsp TimestampPair) ToOrig() ekatime_orig.TimestampPair {
-	return *(*ekatime_orig.TimestampPair)(unsafe.Pointer(&tsp))
+func (tsp TimestampPair) ToOrig() OriginalTimestampPair {
+	return *(*OriginalTimestampPair)(unsafe.Pointer(&tsp))
 }
 
 func (tsp TimestampPair) Split() (t1, t2 Timestamp) {

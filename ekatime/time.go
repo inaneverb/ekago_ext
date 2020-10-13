@@ -17,14 +17,14 @@ type (
 	// https://github.com/qioalice/ekago/ekatime/time_encode.go ,
 	// https://github.com/go-pg/pg ,
 	// https://github.com/go-pg/pg/blob/v10/example_custom_test.go .
-	Time ekatime_orig.Time
+	Time OriginalTime
 )
 
 // WrapDate returns a Time object as modified ekatime.Time object for being able
 // to use it with go-pg.
 //
 // See also: WrapDateUnsafe().
-func WrapTime(t ekatime_orig.Time) Time {
+func WrapTime(t OriginalTime) Time {
 	return Time(t)
 }
 
@@ -32,16 +32,16 @@ func WrapTime(t ekatime_orig.Time) Time {
 // for being able to use it with go-pg.
 //
 // See also: WrapTime().
-func WrapTimePtr(t *ekatime_orig.Time) *Time {
+func WrapTimePtr(t *OriginalTime) *Time {
 	return (*Time)(t)
 }
 
-func (t Time) ToOrig() ekatime_orig.Time {
-	return ekatime_orig.Time(t)
+func (t Time) ToOrig() OriginalTime {
+	return OriginalTime(t)
 }
 
-func (t *Time) ToOrigPtr() *ekatime_orig.Time {
-	return (*ekatime_orig.Time)(t)
+func (t *Time) ToOrigPtr() *OriginalTime {
+	return (*OriginalTime)(t)
 }
 
 func (t Time) Hour() Hour {

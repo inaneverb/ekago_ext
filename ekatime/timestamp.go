@@ -19,14 +19,14 @@ type (
 	// https://github.com/qioalice/ekago/ekatime/timestamp_encode.go ,
 	// https://github.com/go-pg/pg ,
 	// https://github.com/go-pg/pg/blob/v10/example_custom_test.go .
-	Timestamp ekatime_orig.Timestamp
+	Timestamp OriginalTimestamp
 )
 
 // WrapTimestamp returns a Timestamp object as modified ekatime.Timestamp object
 // for being able to use it with go-pg.
 //
 // See also: WrapTimestampPtr().
-func WrapTimestamp(ts ekatime_orig.Timestamp) Timestamp {
+func WrapTimestamp(ts OriginalTimestamp) Timestamp {
 	return Timestamp(ts)
 }
 
@@ -34,16 +34,16 @@ func WrapTimestamp(ts ekatime_orig.Timestamp) Timestamp {
 // for being able to use it with go-pg.
 //
 // See also: WrapTimestamp().
-func WrapTimestampPtr(ts *ekatime_orig.Timestamp) *Timestamp {
+func WrapTimestampPtr(ts *OriginalTimestamp) *Timestamp {
 	return (*Timestamp)(ts)
 }
 
-func (ts Timestamp) ToOrig() ekatime_orig.Timestamp {
-	return ekatime_orig.Timestamp(ts)
+func (ts Timestamp) ToOrig() OriginalTimestamp {
+	return OriginalTimestamp(ts)
 }
 
-func (ts *Timestamp) ToOrigPtr() *ekatime_orig.Timestamp {
-	return (*ekatime_orig.Timestamp)(ts)
+func (ts *Timestamp) ToOrigPtr() *OriginalTimestamp {
+	return (*OriginalTimestamp)(ts)
 }
 
 func (ts Timestamp) I64() int64 {

@@ -17,14 +17,14 @@ type (
 	// https://github.com/qioalice/ekago/ekatime/date_encode.go ,
 	// https://github.com/go-pg/pg ,
 	// https://github.com/go-pg/pg/blob/v10/example_custom_test.go .
-	Date ekatime_orig.Date
+	Date OriginalDate
 )
 
 // WrapDate returns an Date object as modified ekatime.Date object for being able
 // to use it with go-pg.
 //
 // See also: WrapDatePtr().
-func WrapDate(dd ekatime_orig.Date) Date {
+func WrapDate(dd OriginalDate) Date {
 	return Date(dd)
 }
 
@@ -32,16 +32,16 @@ func WrapDate(dd ekatime_orig.Date) Date {
 // for being able to use it with go-pg.
 //
 // See also: WrapDate().
-func WrapDatePtr(dd *ekatime_orig.Date) *Date {
+func WrapDatePtr(dd *OriginalDate) *Date {
 	return (*Date)(dd)
 }
 
-func (dd Date) ToOrig() ekatime_orig.Date {
-	return ekatime_orig.Date(dd)
+func (dd Date) ToOrig() OriginalDate {
+	return OriginalDate(dd)
 }
 
-func (dd *Date) ToOrigPtr() *ekatime_orig.Date {
-	return (*ekatime_orig.Date)(dd)
+func (dd *Date) ToOrigPtr() *OriginalDate {
+	return (*OriginalDate)(dd)
 }
 
 func (dd Date) ToCmp() Date {
