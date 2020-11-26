@@ -33,7 +33,10 @@ func (bw *bw) Write(p []byte) (n int, err error) {
 }
 
 func foo() *ekaerr.Error {
-	return ekaerr.Interrupted.New("some message").W("test", 42).Throw()
+	return ekaerr.Interrupted.
+		New("some message").
+		AddFields("f1", "v1").
+		Throw()
 }
 
 func log() {
