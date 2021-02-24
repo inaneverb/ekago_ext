@@ -28,25 +28,25 @@ const (
 	// CI_WriterHttp object created, not started. Workers aren't spawned yet.
 	// Channels aren't created yet. Buffers aren't allocated yet.
 	//
-	//   -> _DDWRITER_CAS_STATUS_INITIALIZING.
+	//   -> _CAS_STATUS_INITIALIZING.
 	//
-	_DDWRITER_CAS_STATUS_NOT_INITIALIZED = int32(0)
+	_CAS_STATUS_NOT_INITIALIZED = int32(0)
 
 	// CI_WriterHttp object under initializing right now by some goroutine.
 	// If one goroutine tries to take a responsibility of initialization
 	// but seeing that current status is "initializing", it will lock yourself
 	// and waits until other goroutine initializes.
 	//
-	//   -> _DDWRITER_CAS_STATUS_READY
-	//   -> _DDWRITER_CAS_STATUS_FINALLY_DISABLED
+	//   -> _CAS_STATUS_READY
+	//   -> _CAS_STATUS_FINALLY_DISABLED
 	//
-	_DDWRITER_CAS_STATUS_INITIALIZING = int32(1)
+	_CAS_STATUS_INITIALIZING = int32(1)
 
 	// CI_WriterHttp successfully initialized, worked. All workers spawned.
 	//
-	//   -> _DDWRITER_CAS_STATUS_TEMPORARY_DISABLED
+	//   -> _CAS_STATUS_TEMPORARY_DISABLED
 	//
-	_DDWRITER_CAS_STATUS_READY = int32(10)
+	_CAS_STATUS_READY = int32(10)
 
 	// Two cases:
 	//
@@ -56,26 +56,27 @@ const (
 	// 2. Final dying is requested by destructor.
 	//    Will be changed to "finally disabled" soon (almost instantly).
 	//
-	//   -> _DDWRITER_CAS_STATUS_READY
-	//   -> _DDWRITER_CAS_STATUS_FINALLY_DISABLED
+	//   -> _CAS_STATUS_READY
+	//   -> _CAS_STATUS_FINALLY_DISABLED
 	//
-	_DDWRITER_CAS_STATUS_TEMPORARY_DISABLED = int32(-2)
+	_CAS_STATUS_TEMPORARY_DISABLED = int32(-2)
 
 	// The CI_WriterHttp has been completely stop and will NEVER run again.
 	// This status CAN NOT be changed.
-	_DDWRITER_CAS_STATUS_FINALLY_DISABLED = int32(-4)
+	_CAS_STATUS_FINALLY_DISABLED = int32(-4)
 )
 
 //noinspection GoSnakeCaseUsage
 const (
-	// Default values for _DDWRITER_CAS_STATUS_INITIALIZING's fields that are not set,
+	// Default values for _CAS_STATUS_INITIALIZING's fields that are not set,
 	// or had an incorrect values.
 
-	_DEFAULT_DDWRITER_ENTRIES_TOTAL_BUF_SIZE         = 1024
-	_DEFAULT_DDWRITER_WORKER_NUM                     = 2
-	_DEFAULT_DDWRITER_ENTRIES_PER_WORKER_BUF_SIZE    = 32
-	_DEFAULT_DDWRITER_WORKER_FLUSH_DELAY             = 10 * time.Second
-	_DEFAULT_DDWRITER_WORKER_FLUSH_DEFERRED_PER_ITER = 5
+	_DEFAULT_ENTRIES_TOTAL_BUF_SIZE         = 4096
+	_DEFAULT_ENTRIES_DEFERRED_BUF_SIZE      = 16384
+	_DEFAULT_WORKER_NUM                     = 2
+	_DEFAULT_ENTRIES_PER_WORKER_BUF_SIZE    = 32
+	_DEFAULT_WORKER_FLUSH_DELAY             = 10 * time.Second
+	_DEFAULT_WORKER_FLUSH_DEFERRED_PER_ITER = 5
 )
 
 // configure is a private part of public configuration methods.
@@ -90,7 +91,7 @@ func (dw *CI_WriterHttp) configure(cb func(dw *CI_WriterHttp)) *CI_WriterHttp {
 		dw.slowInit.Lock()
 		defer dw.slowInit.Unlock()
 
-		if atomic.LoadInt32(&dw.casInitStatus) == _DDWRITER_CAS_STATUS_NOT_INITIALIZED {
+		if atomic.LoadInt32(&dw.casInitStatus) == _CAS_STATUS_NOT_INITIALIZED {
 			dw.beenPinged = false
 			cb(dw)
 		}
@@ -104,16 +105,16 @@ func (dw *CI_WriterHttp) configure(cb func(dw *CI_WriterHttp)) *CI_WriterHttp {
 func (dw *CI_WriterHttp) canWrite() bool {
 
 	switch atomic.LoadInt32(&dw.casInitStatus) {
-	case _DDWRITER_CAS_STATUS_READY:
+	case _CAS_STATUS_READY, _CAS_STATUS_TEMPORARY_DISABLED:
 		return true
-	case _DDWRITER_CAS_STATUS_FINALLY_DISABLED:
+	case _CAS_STATUS_FINALLY_DISABLED:
 		return false
 	}
 
-	// Take a responsibility about CI_WriterHttp initializing.
+	// Take care of CI_WriterHttp initializing.
 	// We acquiring mutex, and we will initialize a writer.
 	//
-	// (Or we could acquire it only when someone else finishes an initialization:
+	// (Or we WILL acquire it only after someone else did finish an initialization:
 	// in that case it's OK for us, we'll check it again and true is just returned then).
 	dw.slowInit.Lock()
 
@@ -124,30 +125,45 @@ func (dw *CI_WriterHttp) canWrite() bool {
 
 	// Assume, the current status is "not initializing" and try to start initializing.
 	continueInitialization := atomic.CompareAndSwapInt32(&dw.casInitStatus,
-		_DDWRITER_CAS_STATUS_NOT_INITIALIZED, _DDWRITER_CAS_STATUS_INITIALIZING)
+		_CAS_STATUS_NOT_INITIALIZED, _CAS_STATUS_INITIALIZING)
 
 	if continueInitialization {
+
 		err := dw.performInitialization()
 		if err.IsNil() {
-			atomic.StoreInt32(&dw.casInitStatus, _DDWRITER_CAS_STATUS_READY)
+			atomic.StoreInt32(&dw.casInitStatus, _CAS_STATUS_READY)
 		} else {
-			atomic.StoreInt32(&dw.casInitStatus, _DDWRITER_CAS_STATUS_FINALLY_DISABLED)
+			atomic.StoreInt32(&dw.casInitStatus, _CAS_STATUS_FINALLY_DISABLED)
 		}
 
 		dw.slowInit.Unlock()
 
 		err.LogAsError()
 		return err.IsNil()
-	}
 
-	// Well, looks like another goroutine already did initialize it.
-	// Thanks them, do nothing.
-	dw.slowInit.Unlock()
-	return dw.canWrite()
+	} else {
+
+		// Well, looks like another goroutine already did initialize it.
+		// Thanks to them, do nothing.
+
+		dw.slowInit.Unlock()
+
+		// It's safe to recursively call.
+		//
+		// Here all 3 statuses are covered in which the CI_WriterHttp can be
+		// after releasing slowInit mutex.
+		//
+		// Only 2 statuses are not handled by CAS in the start of this function:
+		// _CAS_STATUS_NOT_INITIALIZED, _CAS_STATUS_INITIALIZING.
+		// It's impossible that current CI_WriterHttp's status will be any of them.
+		// After releasing a mutex (no matter who was really did initialize:
+		// we or another goroutine), the status MUST BE another than these ones.
+		return dw.canWrite()
+	}
 }
 
-// performInitialization initializes a CI_WriterHttp. Returns error if no provider
-// is selected or ping was failed.
+// performInitialization initializes a CI_WriterHttp.
+// Returns error if no provider is selected or ping was failed.
 // Tries to ping only if the user didn't do it himself.
 func (dw *CI_WriterHttp) performInitialization() *ekaerr.Error {
 
@@ -175,10 +191,17 @@ func (dw *CI_WriterHttp) performInitialization() *ekaerr.Error {
 
 	dw.workerTickers = make([]*time.Ticker, dw.workerNum)
 	dw.entries = make(chan []byte, dw.entriesBufferLen)
-	dw.entriesPackDeferred = make(chan *bytes.Buffer, dw.deferredEntriesBufferLen)
+	dw.entriesPackDeferred = make(chan *bytes.Buffer, *dw.deferredEntriesBufferLen)
+
+	if dw.ctx == nil {
+		dw.ctx = context.Background()
+	}
+	dw.ctx, dw.cancelFunc = context.WithCancel(dw.ctx)
 
 	dw.workersWg.Add(int(dw.workerNum))
-	dw.ctx, dw.cancelFunc = context.WithCancel(context.Background())
+	if dw.externalWg != nil {
+		dw.externalWg.Add(1)
+	}
 
 	for i := uint16(0); i < dw.workerNum; i++ {
 		dw.workerTickers[i] = time.NewTicker(dw.workerFlushDelay)
@@ -206,23 +229,28 @@ func (dw *CI_WriterHttp) performInitialization() *ekaerr.Error {
 func (dw *CI_WriterHttp) initOverwriteZeroValues() {
 
 	if dw.entriesBufferLen <= 0 {
-		dw.entriesBufferLen = _DEFAULT_DDWRITER_ENTRIES_TOTAL_BUF_SIZE
+		dw.entriesBufferLen = _DEFAULT_ENTRIES_TOTAL_BUF_SIZE
 	}
 
 	if dw.workerNum <= 0 {
-		dw.workerNum = _DEFAULT_DDWRITER_WORKER_NUM
+		dw.workerNum = _DEFAULT_WORKER_NUM
 	}
 
 	if dw.workerEntriesBufferLen <= 0 {
-		dw.workerEntriesBufferLen = _DEFAULT_DDWRITER_ENTRIES_PER_WORKER_BUF_SIZE
+		dw.workerEntriesBufferLen = _DEFAULT_ENTRIES_PER_WORKER_BUF_SIZE
 	}
 
 	if dw.workerFlushDelay <= 0 {
-		dw.workerFlushDelay = _DEFAULT_DDWRITER_WORKER_FLUSH_DELAY
+		dw.workerFlushDelay = _DEFAULT_WORKER_FLUSH_DELAY
 	}
 
 	if dw.workerFlushDeferredPerIter <= 0 {
-		dw.workerFlushDeferredPerIter = _DEFAULT_DDWRITER_WORKER_FLUSH_DEFERRED_PER_ITER
+		dw.workerFlushDeferredPerIter = _DEFAULT_WORKER_FLUSH_DEFERRED_PER_ITER
+	}
+
+	if dw.deferredEntriesBufferLen == nil {
+		var v uint32 = _DEFAULT_ENTRIES_DEFERRED_BUF_SIZE
+		dw.deferredEntriesBufferLen = &v
 	}
 }
 
@@ -237,19 +265,21 @@ func (dw *CI_WriterHttp) initOverwriteZeroValues() {
 // is processed. Thus, there won't be an "initialization <-> dying" data race.
 func (dw *CI_WriterHttp) disable(temporary bool) {
 
-	// Do not change the order or CAS and mutex acquiring.
+	// WARNING!
+	// Do not change the order of CAS and mutex acquiring.
 	// It's made for preventing data race between disable() and performInitialization().
+
 	dw.slowInit.Lock()
 
 	atomic.CompareAndSwapInt32(&dw.casInitStatus,
-		_DDWRITER_CAS_STATUS_READY, _DDWRITER_CAS_STATUS_TEMPORARY_DISABLED)
+		_CAS_STATUS_READY, _CAS_STATUS_TEMPORARY_DISABLED)
 
 	if temporary {
 		dw.slowInit.Unlock()
 		return
 	}
 
-	atomic.StoreInt32(&dw.casInitStatus, _DDWRITER_CAS_STATUS_FINALLY_DISABLED)
+	atomic.StoreInt32(&dw.casInitStatus, _CAS_STATUS_FINALLY_DISABLED)
 	dw.cancelFunc()
 
 	//close(dw.entries)
@@ -266,6 +296,10 @@ func (dw *CI_WriterHttp) disable(temporary bool) {
 	// DO NOT CHANGE THE ORDER!
 	dw.slowInit.Unlock()
 	dw.workersWg.Wait()
+
+	if dw.externalWg != nil {
+		dw.externalWg.Done()
+	}
 
 	close(dw.entriesPackDeferred)
 }
@@ -373,7 +407,7 @@ func (dw *CI_WriterHttp) processEntriesBuffer(
 ) {
 	switch status := atomic.LoadInt32(&dw.casInitStatus); {
 
-	case status == _DDWRITER_CAS_STATUS_TEMPORARY_DISABLED && !masterWorker:
+	case status == _CAS_STATUS_TEMPORARY_DISABLED && !masterWorker:
 
 		// We won't send these entries at this moment, but after returning from
 		// this method, 'buf' will be reused. We have to copy that.
@@ -403,7 +437,7 @@ func (dw *CI_WriterHttp) processEntriesBuffer(
 	// Request finished w/ no error.
 	// Maybe CI_WriterHttp was temporary disabled and now it's time to recover?
 	atomic.CompareAndSwapInt32(&dw.casInitStatus,
-		_DDWRITER_CAS_STATUS_TEMPORARY_DISABLED, _DDWRITER_CAS_STATUS_READY)
+		_CAS_STATUS_TEMPORARY_DISABLED, _CAS_STATUS_READY)
 
 	deferredEntriesPackNum := uint16(len(dw.entriesPackDeferred))
 	if deferredEntriesPackNum == 0 {
@@ -411,7 +445,7 @@ func (dw *CI_WriterHttp) processEntriesBuffer(
 	} else if deferredEntriesPackNum > dw.workerFlushDeferredPerIter {
 		// We have to limit how much buffers will be processed again but only
 		// if it's not the call in the destructor (the latest pushing attempt).
-		if atomic.LoadInt32(&dw.casInitStatus) != _DDWRITER_CAS_STATUS_FINALLY_DISABLED {
+		if atomic.LoadInt32(&dw.casInitStatus) != _CAS_STATUS_FINALLY_DISABLED {
 			deferredEntriesPackNum = dw.workerFlushDeferredPerIter
 		}
 	}

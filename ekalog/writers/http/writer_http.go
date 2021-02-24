@@ -69,7 +69,7 @@ type (
 	//
 	// 6. Slow down when service unavailable or network error.
 	//    If request sending at the some worker is failed
-	//    (it's only network or log service issue if you configure writer well),
+	//    (it's only network or log service issue if you configured writer well),
 	//    the usage of HTTP API service will slow down, logging what happens
 	//    and why and saving (not dropping) your logs to the internal buffer.
 	//
@@ -87,6 +87,13 @@ type (
 	//
 	//    The package will sends the rest of logs for the last time for you.
 	//    And you do not need to do something for that.
+	//
+	//    Need more?
+	//    No problem, RegisterGracefulShutdown() allows you to specify context,
+	//    using which you may finally disable CI_WriterHttp
+	//    and a sync.WaitGroup, using which you may be sure, that you get your control
+	//    only when all accumulated logs are flushed.
+	//    You may specify only one of them.
 	//
 	// 8. Auto-initialization:
 	//    You do need to call methods like Start() or something like that.
@@ -136,8 +143,8 @@ type (
 
 		providerInitializer func(req *fasthttp.Request)
 
-		entriesBufferLen         uint16
-		deferredEntriesBufferLen uint16
+		entriesBufferLen         uint32
+		deferredEntriesBufferLen *uint32
 
 		workerNum              uint16
 		workerEntriesBufferLen uint16
@@ -160,6 +167,7 @@ type (
 		cancelFunc context.CancelFunc
 
 		workersWg sync.WaitGroup
+		externalWg *sync.WaitGroup
 
 		workerTickers []*time.Ticker
 
@@ -215,38 +223,153 @@ func (dw *CI_WriterHttp) UseProviderDataDog(addr, token string) *CI_WriterHttp {
 		})
 }
 
+// RegisterGracefulShutdown allows you to pass context.Context and sync.WaitGroup,
+// that will be used to provide you graceful shutdown, meaning:
 //
-func (dw *CI_WriterHttp) SetBufferCap(cap uint16) *CI_WriterHttp {
+// 1. Context.
+//    Specify, when running CI_WriterHttp must be disabled.
+//
+// 2. sync.WaitGroup.
+//    If specified, one second before all workers are started,
+//    your waitgroup's counter will be increased, and it will be decreased,
+//    when all of them are stopped, guaranteeing to you,
+//    when disabling is requested, flushing all accumulated logs is important.
+//
+// Read p.1, p.8 of CI_WriterHttp doc for more info.
+//
+// Does nothing, if CI_WriterHttp already running, stopped or disabled
+// (Write() has been called at least once).
+//
+// You may pass only context or only sync.WaitGroup. It's OK.
+func (dw *CI_WriterHttp) RegisterGracefulShutdown(ctx context.Context, wg *sync.WaitGroup) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		dw.entriesBufferLen = cap
+		dw.ctx = ctx
+		dw.externalWg = wg
 	})
 }
 
+// SetBufferCap sets a limit of internal pool of encoded []byte entries,
+// to which Write() method places them, and where they are extracted from later
+// for being processed and sent.
 //
+// If this cap is reached, Write() will be IGNORED all next entries,
+// until old ones are processed.
+//
+// So, you need to specify this buffer as big as it must be never reached,
+// to keep your logs safe even at the load,
+// but not as big to spend gigabytes of RAM for them.
+// Keep in mind, that buffer stores only pointers to []byte
+// (it's up to 24 bytes per item), but the data of []byte also takes a RAM.
+//
+// Read p.1, p.3 of CI_WriterHttp doc for more info.
+//
+// Does nothing, if CI_WriterHttp already running, stopped or disabled
+// (Write() has been called at least once).
+//
+// Allowed range: [256..1'048'576] (2**8..2**20).
+// Do not overwrite default value if you're not understand how much RAM
+// your log entries consume per item, and what RAM consumption will be
+// at the upper bound.
+// Default: 4096.
+func (dw *CI_WriterHttp) SetBufferCap(cap uint32) *CI_WriterHttp {
+	return dw.configure(func(dw *CI_WriterHttp) {
+		if cap >= uint32(1 << 8) && cap <= uint32(1 << 20) {
+			dw.entriesBufferLen = cap
+		}
+	})
+}
+
+// SetWorkerBufferCap sets a limit of each worker's internal pool
+// of encoded []byte entries, when that accumulated set will be sent to your provider.
+//
+// Less entries may be sent
+// (if timeout that you may set by SetWorkerAutoFlushDelay() is reached),
+// but this value tells a maximum.
+//
+// Read p.1, p.3 of CI_WriterHttp doc for more info.
+//
+// Does nothing, if CI_WriterHttp already running, stopped or disabled
+// (Write() has been called at least once).
+//
+// Allowed range: [1..16384].
+// Default: 32.
+//
+// Hint.
+// It's useful when your service may accept a bulk requests.
+// Do less requests but much loaded.
+// But if your provider doesn't accept bulk requests, you may need to set this to 1.
 func (dw *CI_WriterHttp) SetWorkerBufferCap(cap uint16) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		dw.workerEntriesBufferLen = cap
+		if cap >= 1 && cap <= 16384 {
+			dw.workerEntriesBufferLen = cap
+		}
 	})
 }
 
+// SetDeferredBufferCap looks like SetBufferCap(),
+// but sets a capacity of those encoded []byte entries, that is tried to be sent,
+// while CI_WriterHttp is temporary disabled.
 //
-func (dw *CI_WriterHttp) SetDeferredBufferCap(cap uint16) *CI_WriterHttp {
+// Usually, you set this bigger than value used in SetBufferCap(),
+// to store your entries when your provider is not available you don't know why,
+// because exactly in this buffer all those entries that are tried to be processed,
+// while your provider is not available, will be stored.
+//
+// If is set to 0, the entries will be discarded
+// when CI_WriterHttp is temporary disabled.
+//
+// Read p.1, p.3, p.6 of CI_WriterHttp doc for more info.
+//
+// Does nothing, if CI_WriterHttp already running, stopped or disabled
+// (Write() has been called at least once).
+//
+// Allowed range: [0..8'388'608].
+// Do not overwrite default value if you're not understand how much RAM
+// your log entries consume per item, and what RAM consumption will be
+// at the upper bound.
+// Default: 16384.
+func (dw *CI_WriterHttp) SetDeferredBufferCap(cap uint32) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		dw.deferredEntriesBufferLen = cap
+		if cap <= uint32(1 << 23) {
+			dw.deferredEntriesBufferLen = &cap
+		}
 	})
 }
 
+// SetWorkersNum sets how much goroutines will be spawned
+// to handle all passed encoded []byte entries and send them to your provider.
 //
+// Read p.1 of CI_WriterHttp doc for more info.
+//
+// Does nothing, if CI_WriterHttp already running, stopped or disabled
+// (Write() has been called at least once).
+//
+// Allowed range: [1..32].
+// Set high values only if there is a really high throughput is required.
+// Default: 2. Recommended: [1..4].
 func (dw *CI_WriterHttp) SetWorkersNum(num uint16) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		dw.workerNum = num
+		if num >= 1 && num <= 32 {
+			dw.workerNum = num
+		}
 	})
 }
 
+// SetWorkerAutoFlushDelay sets how often accumulated []byte entries will be sent
+// to your provider, even if their buffer is not full.
 //
+// Read p.3, p.5 of CI_WriterHttp doc for more info.
+//
+// Does nothing, if CI_WriterHttp already running, stopped or disabled
+// (Write() has been called at least once).
+//
+// Allowed range: [100ms..24h].
+// Default: 10s.
 func (dw *CI_WriterHttp) SetWorkerAutoFlushDelay(delay time.Duration) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		dw.workerFlushDelay = delay
+		if delay >= 100 * time.Microsecond && delay <= 24 * time.Hour {
+			dw.workerFlushDelay = delay
+		}
 	})
 }
 
