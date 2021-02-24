@@ -493,13 +493,16 @@ func (dw *CI_WriterHttp) sendRequest(
 
 ) *ekaerr.Error {
 
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
+	req := fasthttp.AcquireRequest(); defer fasthttp.ReleaseRequest(req)
+	resp := fasthttp.AcquireResponse(); defer fasthttp.ReleaseResponse(resp)
 
 	req.Header.SetMethod(fasthttp.MethodPost)
-	req.SetBodyStream(buf, buf.Len())
+
+	if dw.providerBodyPreparer != nil {
+		req.SetBodyStream(dw.providerBodyPreparer(buf), -1)
+	} else {
+		req.SetBodyStream(buf, -1)
+	}
 
 	dw.providerInitializer(req)
 

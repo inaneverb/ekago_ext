@@ -9,11 +9,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/qioalice/ekago/v2/ekaerr"
+	"github.com/qioalice/ekago/v2/ekastr"
 
 	"github.com/valyala/fasthttp"
 )
@@ -142,6 +144,7 @@ type (
 		// Has getter or/and setter
 
 		providerInitializer func(req *fasthttp.Request)
+		providerBodyPreparer func(oldBody io.Reader) (newBody io.Reader)
 
 		entriesBufferLen         uint32
 		deferredEntriesBufferLen *uint32
@@ -181,12 +184,6 @@ type (
 	}
 )
 
-//noinspection GoSnakeCaseUsage
-const (
-	DATADOG_ADDR_US = "https://http-intake.logs.datadoghq.com/v1/input"
-	DATADOG_ADDR_EU = "https://http-intake.logs.datadoghq.eu/v1/input"
-)
-
 var (
 	ErrWriterIsNil      = fmt.Errorf("CI_WriterHttp: writer is nil (not initialized)")
 	ErrWriterDisabled   = fmt.Errorf("CI_WriterHttp: writer is disabled (stopped)")
@@ -196,31 +193,27 @@ var (
 // UseProviderManual is a log service provider manual configurator.
 // You MUST specify a callback that will set-up an HTTP request for desired provider.
 //
+// A 2nd argument allows you to modify generated HTTP request's body
+// before it will be sent. Your callback (if provided) must return a new body,
+// that will be used instead of old one.
+//
+// WARNING!
+// You MUST NOT save and reuse old body that you receiver in your 2nd callback!
+//
 // Nil safe. There is no-op if CI_WriterHttp already initialized.
-func (dw *CI_WriterHttp) UseProviderManual(cb func(req *fasthttp.Request)) *CI_WriterHttp {
+func (dw *CI_WriterHttp) UseProviderManual(
+
+	cb func(req *fasthttp.Request),
+	bodyPreparer ...func(reader io.Reader) io.Reader,
+
+) *CI_WriterHttp {
+
 	return dw.configure(func(dw *CI_WriterHttp) {
 		dw.providerInitializer = cb
+		if len(bodyPreparer) > 0 && bodyPreparer[0] != nil {
+			dw.providerBodyPreparer = bodyPreparer[0]
+		}
 	})
-}
-
-// UseProviderDataDog setups CI_WriterHttp for DataDog log service provider
-// ( https://www.datadoghq.com/ ).
-//
-// You MUST specify 'addr' as desired DataDog's HTTP addr (you may use predefined
-// constants DATADOG_ADDR_US, DATADOG_ADDR_EU) or use your own and DataDog
-// service's token as 'token'.
-//
-// Nil safe. There is no-op if CI_WriterHttp already initialized.
-func (dw *CI_WriterHttp) UseProviderDataDog(addr, token string) *CI_WriterHttp {
-	return dw.
-		AddBefore([]byte("[")).
-		AddAfter([]byte("]")).
-		AddBetween([]byte(",")).
-		UseProviderManual(func(req *fasthttp.Request) {
-			req.Header.SetContentType("application/json")
-			req.SetRequestURI(addr)
-			req.Header.Set("DD-API-KEY", token)
-		})
 }
 
 // RegisterGracefulShutdown allows you to pass context.Context and sync.WaitGroup,
@@ -413,6 +406,63 @@ func (dw *CI_WriterHttp) AddBetween(data []byte) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
 		dw.dataBetween = data
 	})
+}
+
+// AddBeforeS is the same as AddBefore() but accepts string instead of []byte,
+// doing no-copy conversion.
+func (dw *CI_WriterHttp) AddBeforeS(data string) *CI_WriterHttp {
+	return dw.AddBefore(ekastr.S2B(data))
+}
+
+// AddAfterS is the same as AddAfter() but accepts string instead of []byte,
+// doing no-copy conversion.
+func (dw *CI_WriterHttp) AddAfterS(data string) *CI_WriterHttp {
+	return dw.AddAfter(ekastr.S2B(data))
+}
+
+// AddBetweenS is the same as AddBetween() but accepts string instead of []byte,
+// doing no-copy conversion.
+func (dw *CI_WriterHttp) AddBetweenS(data string) *CI_WriterHttp {
+	return dw.AddBetween(ekastr.S2B(data))
+}
+
+// AddBeforeAfterBetween replaces all of AddBefore(), AddAfter(), AddBetween() calls.
+//
+// It accepts 1 or 3 arguments.
+// If 3 arguments is provided, they passed to corresponding calls.
+// If 1 argument is passed, and it's length is multiple of 3, it will be split
+// to the equal length 3 pieces, and they are passed to corresponding calls.
+//
+// All other variants of arguments are ignored and does no-op.
+//
+// Nil safe. There is no-op if CI_WriterHttp already initialized.
+func (dw *CI_WriterHttp) AddBeforeAfterBetween(args ...[]byte) *CI_WriterHttp {
+	return dw.configure(func(dw *CI_WriterHttp) {
+		switch l := len(args); {
+		case l == 1 && len(args[0]) > 0 && len(args[0]) % 3 == 0:
+			l = len(args[0]) / 3
+			dw.dataBefore, dw.dataAfter, dw.dataBetween =
+				args[0][:l], args[0][l:l*2], args[0][l*2:]
+		case l == 3:
+			dw.dataBefore, dw.dataAfter, dw.dataBetween =
+				args[0], args[1], args[2]
+		default:
+			return
+		}
+	})
+}
+
+// AddBeforeAfterBetweenS is the same as AddBeforeAfterBetweenS()
+// but accepts strings instead of [][]byte, doing no-copy conversion.
+func (dw *CI_WriterHttp) AddBeforeAfterBetweenS(args ...string) *CI_WriterHttp {
+	var args_ [][]byte
+	if len(args) > 0 {
+		args_ = make([][]byte, len(args))
+		for i, arg := range args {
+			args_[i] = ekastr.S2B(arg)
+		}
+	}
+	return dw.AddBeforeAfterBetween(args_...)
 }
 
 // Ping checks whether provider settings are correct and connection can be established.
