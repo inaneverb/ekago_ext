@@ -1,6 +1,6 @@
 // Copyright © 2020. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekalog_writer_http
@@ -11,8 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/qioalice/ekago/v2/ekadeath"
-	"github.com/qioalice/ekago/v2/ekaerr"
+	"github.com/qioalice/ekago/v3/ekadeath"
+	"github.com/qioalice/ekago/v3/ekaerr"
+	"github.com/qioalice/ekago/v3/ekalog"
+	"github.com/qioalice/ekago/v3/ekastr"
 
 	"github.com/valyala/fasthttp"
 )
@@ -138,7 +140,7 @@ func (dw *CI_WriterHttp) canWrite() bool {
 
 		dw.slowInit.Unlock()
 
-		err.LogAsError()
+		ekalog.Errore("", err)
 		return err.IsNil()
 
 	} else {
@@ -213,10 +215,10 @@ func (dw *CI_WriterHttp) performInitialization() *ekaerr.Error {
 	ekadeath.Reg(func() {
 		lostEntries := atomic.LoadUint64(&dw.entriesCompletelyLostCounter)
 		if lostEntries > 0 {
-			ekaerr.RejectedOperation.
+			err := ekaerr.RejectedOperation.
 				New("CI_WriterHttp: Some log entries are lost and will never be logged.").
-				AddFields("ci_writer_http_min_lost_entries_num", lostEntries).
-				LogAsWarn()
+				WithUint64("ci_writer_http_min_lost_entries_num", lostEntries)
+			ekalog.Warne("", err)
 		}
 		dw.disable(false)
 	})
@@ -430,7 +432,7 @@ func (dw *CI_WriterHttp) processEntriesBuffer(
 
 	if err := dw.sendRequest(buf, nil); err.IsNotNil() {
 		dw.disable(true)
-		err.LogAsErrorw("Failed to log to DataDog") // TODO
+		ekalog.Errore("Failed to log to DataDog", err) // TODO
 		return
 	}
 
@@ -459,7 +461,7 @@ func (dw *CI_WriterHttp) processEntriesBuffer(
 
 				// Oops, failed again.
 				dw.disable(true)
-				err.LogAsErrorw("Failed to log to DataDog") // TODO
+				ekalog.Errore("Failed to log to DataDog", err) // TODO
 
 				// Try to defer entries pack again.
 				select {
@@ -493,8 +495,10 @@ func (dw *CI_WriterHttp) sendRequest(
 
 ) *ekaerr.Error {
 
-	req := fasthttp.AcquireRequest(); defer fasthttp.ReleaseRequest(req)
-	resp := fasthttp.AcquireResponse(); defer fasthttp.ReleaseResponse(resp)
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
 
 	req.Header.SetMethod(fasthttp.MethodPost)
 
@@ -515,7 +519,7 @@ func (dw *CI_WriterHttp) sendRequest(
 	if legacyErr := dw.c.DoRedirects(req, resp, 5); legacyErr != nil {
 		return ekaerr.ExternalError.
 			Wrap(legacyErr, "CI_WriterHttp: Failed to perform HTTP request.").
-			AddFields("ci_writer_http_url", string(req.RequestURI())).
+			WithString("ci_writer_http_url", ekastr.B2S(req.RequestURI())).
 			Throw()
 	}
 
@@ -524,8 +528,8 @@ func (dw *CI_WriterHttp) sendRequest(
 	default:
 		return ekaerr.ExternalError.
 			New("CI_WriterHttp: Unexpected HTTP status code.").
-			AddFields("ci_writer_http_status_code", status,
-				"ci_writer_http_url", string(req.RequestURI())).
+			WithInt("ci_writer_http_status_code", status).
+			WithString("ci_writer_http_url", ekastr.B2S(req.RequestURI())).
 			Throw()
 	}
 

@@ -1,13 +1,13 @@
 // Copyright © 2020. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekatime
 
 //goland:noinspection GoSnakeCaseUsage
 import (
-	ekatime_orig "github.com/qioalice/ekago/v2/ekatime"
+	ekatime_orig "github.com/qioalice/ekago/v3/ekatime"
 )
 
 type (
@@ -80,6 +80,10 @@ func NewDate(y Year, m Month, d Day) Date {
 	return WrapDate(ekatime_orig.NewDate(y, m, d))
 }
 
+func NewDateFromDayOfYear(y Year, days ekatime_orig.Days) Date {
+	return WrapDate(ekatime_orig.NewDateFromDayOfYear(y, days))
+}
+
 func (dd Date) WithTime(hh Hour, mm Minute, ss Second) Timestamp {
 	return WrapTimestamp(dd.ToOrig().WithTime(hh, mm, ss))
 }
@@ -90,28 +94,4 @@ func InMonth(y Year, m Month) Timestamp {
 
 func InYear(y Year) Timestamp {
 	return WrapTimestamp(ekatime_orig.InYear(y))
-}
-
-func BeginningOfYear(y Year) Timestamp {
-	return WrapTimestamp(ekatime_orig.BeginningOfYear(y))
-}
-
-func EndOfYear(y Year) Timestamp {
-	return WrapTimestamp(ekatime_orig.EndOfYear(y))
-}
-
-func BeginningAndEndOfYear(y Year) TimestampPair {
-	return WrapTimestampPair(ekatime_orig.BeginningAndEndOfYear(y))
-}
-
-func BeginningOfMonth(y Year, m Month) Timestamp {
-	return WrapTimestamp(ekatime_orig.BeginningOfMonth(y, m))
-}
-
-func EndOfMonth(y Year, m Month) Timestamp {
-	return WrapTimestamp(ekatime_orig.EndOfMonth(y, m))
-}
-
-func BeginningAndEndOfMonth(y Year, m Month) TimestampPair {
-	return WrapTimestampPair(ekatime_orig.BeginningAndEndOfMonth(y, m))
 }

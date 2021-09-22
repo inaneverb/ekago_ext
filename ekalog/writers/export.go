@@ -1,12 +1,12 @@
 // Copyright © 2020. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekalog_writers
 
 import (
-	"github.com/qioalice/ekago_ext/v2/ekalog/writers/http"
+	"github.com/qioalice/ekago_ext/v3/ekalog/writers/http"
 )
 
 //goland:noinspection GoSnakeCaseUsage

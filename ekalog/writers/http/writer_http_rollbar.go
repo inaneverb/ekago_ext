@@ -1,6 +1,6 @@
 // Copyright © 2021. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekalog_writer_http
@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/qioalice/ekago/v2/ekastr"
+	"github.com/qioalice/ekago/v3/ekastr"
 
 	"github.com/valyala/fasthttp"
 )

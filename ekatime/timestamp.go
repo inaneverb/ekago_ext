@@ -1,6 +1,6 @@
 // Copyright © 2020. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekatime
@@ -9,7 +9,7 @@ package ekatime
 import (
 	"time"
 
-	ekatime_orig "github.com/qioalice/ekago/v2/ekatime"
+	ekatime_orig "github.com/qioalice/ekago/v3/ekatime"
 )
 
 type (
@@ -90,16 +90,16 @@ func (ts Timestamp) Split() (d Date, t Time) {
 	return WrapDate(ts.ToOrig().Date()), WrapTime(ts.ToOrig().Time())
 }
 
-func Now() Timestamp {
-	return WrapTimestamp(ekatime_orig.Now())
+func NewTimestampNow() Timestamp {
+	return WrapTimestamp(ekatime_orig.NewTimestampNow())
 }
 
-func UnixFrom(y Year, m Month, d Day, hh Hour, mm Minute, ss Second) Timestamp {
-	return WrapTimestamp(ekatime_orig.UnixFrom(y, m, d, hh, mm, ss))
+func NewTimestamp(y Year, m Month, d Day, hh Hour, mm Minute, ss Second) Timestamp {
+	return WrapTimestamp(ekatime_orig.NewTimestamp(y, m, d, hh, mm, ss))
 }
 
-func UnixFromStd(t time.Time) Timestamp {
-	return WrapTimestamp(ekatime_orig.UnixFromStd(t))
+func NewTimestampFromStd(t time.Time) Timestamp {
+	return WrapTimestamp(ekatime_orig.NewTimestampFromStd(t))
 }
 
 func (ts Timestamp) BeginningOfDay() Timestamp {
@@ -136,4 +136,28 @@ func (ts Timestamp) EndOfYear() Timestamp {
 
 func (ts Timestamp) BeginningAndEndOfYear() TimestampPair {
 	return WrapTimestampPair(ts.ToOrig().BeginningAndEndOfYear())
+}
+
+func BeginningOfYear(y Year) Timestamp {
+	return WrapTimestamp(ekatime_orig.BeginningOfYear(y))
+}
+
+func EndOfYear(y Year) Timestamp {
+	return WrapTimestamp(ekatime_orig.EndOfYear(y))
+}
+
+func BeginningAndEndOfYear(y Year) TimestampPair {
+	return WrapTimestampPair(ekatime_orig.BeginningAndEndOfYear(y))
+}
+
+func BeginningOfMonth(y Year, m Month) Timestamp {
+	return WrapTimestamp(ekatime_orig.BeginningOfMonth(y, m))
+}
+
+func EndOfMonth(y Year, m Month) Timestamp {
+	return WrapTimestamp(ekatime_orig.EndOfMonth(y, m))
+}
+
+func BeginningAndEndOfMonth(y Year, m Month) TimestampPair {
+	return WrapTimestampPair(ekatime_orig.BeginningAndEndOfMonth(y, m))
 }

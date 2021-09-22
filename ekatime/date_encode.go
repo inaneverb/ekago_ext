@@ -2,7 +2,7 @@ package ekatime
 
 //goland:noinspection GoSnakeCaseUsage
 import (
-	"github.com/qioalice/ekago_ext/v2/internal/ekasql"
+	"github.com/qioalice/ekago_ext/v3/internal/ekasql"
 
 	"github.com/go-pg/pg/v10/types"
 )

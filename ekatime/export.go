@@ -1,16 +1,21 @@
 // Copyright © 2020. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekatime
 
 import (
-	ekatime_orig "github.com/qioalice/ekago/v2/ekatime"
+	ekatime_orig "github.com/qioalice/ekago/v3/ekatime"
 )
 
 type (
 	// https://github.com/qioalice/ekago/ekatime/timestamp.go
+
+	OnceInCallback      = ekatime_orig.OnceInCallback
+	OnceInPanicCallback = ekatime_orig.OnceInPanicCallback
+
+	// https://github.com/qioalice/ekago/ekatime/once_in.go
 
 	OriginalTimestamp     = ekatime_orig.Timestamp
 	OriginalTimestampPair = ekatime_orig.TimestampPair
@@ -36,10 +41,6 @@ type (
 	// https://github.com/qioalice/ekago/ekatime/event.go
 
 	Event = ekatime_orig.Event
-
-	// https://github.com/qioalice/ekago/ekatime/today.go
-
-	Today = ekatime_orig.Today
 
 	// https://github.com/qioalice/ekago/ekatime/calendar.go
 
@@ -87,6 +88,7 @@ const (
 //goland:noinspection GoUnusedGlobalVariable
 var (
 	// https://github.com/qioalice/ekago/ekatime/once_in.go
+
 	OnceInMinute    = &ekatime_orig.OnceInMinute
 	OnceIn10Minutes = &ekatime_orig.OnceIn10Minutes
 	OnceIn15Minutes = &ekatime_orig.OnceIn15Minutes
@@ -101,10 +103,16 @@ var (
 
 //goland:noinspection GoUnusedGlobalVariable
 var (
+	// https://github.com/qioalice/ekago/ekatime/calendar.go
+
+	NewCalendar = ekatime_orig.NewCalendar
+
 	// https://github.com/qioalice/ekago/ekatime/date.go
 
-	IsValidDate = ekatime_orig.IsValidDate
-	IsLeap      = ekatime_orig.IsLeap
+	IsValidDate           = ekatime_orig.IsValidDate
+	DaysInMonth           = ekatime_orig.DaysInMonth
+	DaysInMonthIgnoreYear = ekatime_orig.DaysInMonthIgnoreYear
+	IsLeap                = ekatime_orig.IsLeap
 
 	// https://github.com/qioalice/ekago/ekatime/event.go
 
@@ -114,6 +122,7 @@ var (
 
 	TillNextMinute   = ekatime_orig.TillNextMinute
 	TillNextHour     = ekatime_orig.TillNextHour
+	TillNext12h      = ekatime_orig.TillNext12h
 	TillNextNoon     = ekatime_orig.TillNextNoon
 	TillNextMidnight = ekatime_orig.TillNextMidnight
 	TillNextDay      = ekatime_orig.TillNextDay
@@ -123,4 +132,9 @@ var (
 	// https://github.com/qioalice/ekago/ekatime/time.go
 
 	IsValidTime = ekatime_orig.IsValidTime
+
+	// https://github.com/qioalice/ekago/ekatime/weekday.go
+
+	WeekdayJan1   = ekatime_orig.WeekdayJan1
+	WeekdayFrom06 = ekatime_orig.WeekdayFrom06
 )

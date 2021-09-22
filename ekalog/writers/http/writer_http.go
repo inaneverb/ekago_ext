@@ -1,6 +1,6 @@
 // Copyright © 2020. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekalog_writer_http
@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/qioalice/ekago/v2/ekaerr"
-	"github.com/qioalice/ekago/v2/ekastr"
+	"github.com/qioalice/ekago/v3/ekaerr"
+	"github.com/qioalice/ekago/v3/ekastr"
 
 	"github.com/valyala/fasthttp"
 )
@@ -143,7 +143,7 @@ type (
 
 		// Has getter or/and setter
 
-		providerInitializer func(req *fasthttp.Request)
+		providerInitializer  func(req *fasthttp.Request)
 		providerBodyPreparer func(oldBody io.Reader) (newBody io.Reader)
 
 		entriesBufferLen         uint32
@@ -169,7 +169,7 @@ type (
 		ctx        context.Context
 		cancelFunc context.CancelFunc
 
-		workersWg sync.WaitGroup
+		workersWg  sync.WaitGroup
 		externalWg *sync.WaitGroup
 
 		workerTickers []*time.Ticker
@@ -266,7 +266,7 @@ func (dw *CI_WriterHttp) RegisterGracefulShutdown(ctx context.Context, wg *sync.
 // Default: 4096.
 func (dw *CI_WriterHttp) SetBufferCap(cap uint32) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		if cap >= uint32(1 << 8) && cap <= uint32(1 << 20) {
+		if cap >= uint32(1<<8) && cap <= uint32(1<<20) {
 			dw.entriesBufferLen = cap
 		}
 	})
@@ -323,7 +323,7 @@ func (dw *CI_WriterHttp) SetWorkerBufferCap(cap uint16) *CI_WriterHttp {
 // Default: 16384.
 func (dw *CI_WriterHttp) SetDeferredBufferCap(cap uint32) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		if cap <= uint32(1 << 23) {
+		if cap <= uint32(1<<23) {
 			dw.deferredEntriesBufferLen = &cap
 		}
 	})
@@ -360,7 +360,7 @@ func (dw *CI_WriterHttp) SetWorkersNum(num uint16) *CI_WriterHttp {
 // Default: 10s.
 func (dw *CI_WriterHttp) SetWorkerAutoFlushDelay(delay time.Duration) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
-		if delay >= 100 * time.Microsecond && delay <= 24 * time.Hour {
+		if delay >= 100*time.Microsecond && delay <= 24*time.Hour {
 			dw.workerFlushDelay = delay
 		}
 	})
@@ -439,7 +439,7 @@ func (dw *CI_WriterHttp) AddBetweenS(data string) *CI_WriterHttp {
 func (dw *CI_WriterHttp) AddBeforeAfterBetween(args ...[]byte) *CI_WriterHttp {
 	return dw.configure(func(dw *CI_WriterHttp) {
 		switch l := len(args); {
-		case l == 1 && len(args[0]) > 0 && len(args[0]) % 3 == 0:
+		case l == 1 && len(args[0]) > 0 && len(args[0])%3 == 0:
 			l = len(args[0]) / 3
 			dw.dataBefore, dw.dataAfter, dw.dataBetween =
 				args[0][:l], args[0][l:l*2], args[0][l*2:]

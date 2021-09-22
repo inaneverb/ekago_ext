@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	ekatime_orig "github.com/qioalice/ekago/v2/ekatime"
+	ekatime_orig "github.com/qioalice/ekago/v3/ekatime"
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
@@ -66,9 +66,9 @@ func (t Time) EncodeBinary(_ *pgtype.ConnInfo, buf []byte) (newBuf []byte, err e
 	}
 
 	microsecondsSinceDayStart :=
-		int64(t.Second()) * microsecondsPerSecond +
-		int64(t.Minute()) * microsecondsPerMinute +
-		int64(t.Hour()) * microsecondsPerHour
+		int64(t.Second())*microsecondsPerSecond +
+			int64(t.Minute())*microsecondsPerMinute +
+			int64(t.Hour())*microsecondsPerHour
 
 	return pgio.AppendInt64(buf, microsecondsSinceDayStart), nil
 }

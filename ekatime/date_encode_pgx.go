@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	ekatime_orig "github.com/qioalice/ekago/v2/ekatime"
+	ekatime_orig "github.com/qioalice/ekago/v3/ekatime"
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
@@ -21,7 +21,7 @@ const (
 
 	// Add constants from original ekatime package
 	// [24..31] bits are unused and reserved for internal purposes.
-	_DATE_INF = Date(1) << 26
+	_DATE_INF        = Date(1) << 26
 	_DATE_IS_NEG_INF = Date(1) << 27
 )
 
@@ -56,7 +56,7 @@ func (dd *Date) DecodeBinary(_ *pgtype.ConnInfo, src []byte) error {
 		*dd = 0 | _DATE_INF | _DATE_IS_NEG_INF
 	default:
 		t := time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.UTC)
-		*dd = WrapDate(ekatime_orig.UnixFromStd(t).Date())
+		*dd = WrapDate(ekatime_orig.NewTimestampFromStd(t).Date())
 	}
 
 	return nil
@@ -83,9 +83,9 @@ func (dd Date) EncodeBinary(_ *pgtype.ConnInfo, buf []byte) (newBuf []byte, err 
 	var daysSinceDateEpoch int32
 
 	switch {
-	case dd & _DATE_INF != 0 && dd & _DATE_IS_NEG_INF != 0:
+	case dd&_DATE_INF != 0 && dd&_DATE_IS_NEG_INF != 0:
 		daysSinceDateEpoch = negativeInfinityDayOffset
-	case dd & _DATE_INF != 0:
+	case dd&_DATE_INF != 0:
 		daysSinceDateEpoch = infinityDayOffset
 	default:
 		tUnix := dd.WithTime(0, 0, 0)

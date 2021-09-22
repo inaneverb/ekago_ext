@@ -1,13 +1,13 @@
 // Copyright © 2020. All rights reserved.
 // Author: Ilya Stroy.
-// Contacts: qioalice@gmail.com, https://github.com/qioalice
+// Contacts: iyuryevich@pm.me, https://github.com/qioalice
 // License: https://opensource.org/licenses/MIT
 
 package ekatime
 
 //goland:noinspection GoSnakeCaseUsage
 import (
-	ekatime_orig "github.com/qioalice/ekago/v2/ekatime"
+	ekatime_orig "github.com/qioalice/ekago/v3/ekatime"
 )
 
 type (
@@ -20,18 +20,14 @@ type (
 	Time OriginalTime
 )
 
-// WrapDate returns a Time object as modified ekatime.Time object for being able
+// WrapTime returns a Time object as modified ekatime.Time object for being able
 // to use it with go-pg.
-//
-// See also: WrapDateUnsafe().
 func WrapTime(t OriginalTime) Time {
 	return Time(t)
 }
 
 // WrapTimePtr returns a Time object by ptr as modified ekatime.Time object
 // for being able to use it with go-pg.
-//
-// See also: WrapTime().
 func WrapTimePtr(t *OriginalTime) *Time {
 	return (*Time)(t)
 }
