@@ -25,6 +25,7 @@ type (
 	Year         = ekatime_orig.Year
 	Month        = ekatime_orig.Month
 	Day          = ekatime_orig.Day
+	Days         = ekatime_orig.Days
 	OriginalDate = ekatime_orig.Date
 
 	// https://github.com/qioalice/ekago/ekatime/time.go
