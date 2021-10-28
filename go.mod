@@ -6,6 +6,6 @@ require (
 	github.com/go-pg/pg/v10 v10.0.3
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgtype v1.8.1
-	github.com/qioalice/ekago/v3 v3.2.2
+	github.com/qioalice/ekago/v3 v3.2.3
 	github.com/valyala/fasthttp v1.16.0
 )
